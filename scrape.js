@@ -1,53 +1,72 @@
-// import { escapeAttribute as a, escapeAttribute, escapeText as n } from './scripts/entities_escape.min.js';
-// import { EntityDecoder as e, htmlDecodeTree as t, DecodingMode as s } from "./scripts/entities_decode.min.js";
-// import { parse } from "./scripts/parse5.min.js";
-// console.log(a, e, parse);
-// import { EntityDecoder as e, htmlDecodeTree as t, DecodingMode as s } from "/npm/entities@4.5.0/lib/decode.js/+esm";
+import { parse } from "/lib/parse5.min.js";
 
+// Establish connection with background script
 chrome.runtime.onConnect.addListener(function (port) {
     console.assert(port.name === "knockknock");
     port.onMessage.addListener(async function (msg) {
         if (msg.title) {
-            const [title, url, data] = await findTitle(msg.title);
-            port.postMessage({ data: data, title: title, url: url });
+            const offers = await findOffers(msg.title);
+            console.log(offers);
+            port.postMessage({ offers: offers });
         }
     });
 });
 
-
-async function findTitle(title) {
+async function findOffers(title) {
     title = title.replaceAll(' ', '-').replaceAll("'", '');
     // const url = `https://www.justwatch.com/ca/movie/${title}`;
     const url = './jw_sample_page.html';
 
     const html = await (await fetch(url)).text();
 
-    const offers = parseOffers(html);
+    const document = parse(html);
 
-    return [title, url, offers];
-    // const doc = new DOMParser().parseFromString(html, "text/html");
-    // const title = doc.querySelector("div.buybox-row.stream.inline").textContent;
-    // console.log(title);
+    const offersResult = [];
+    const offers = querySelectorAll(document, "class", "buybox-row");
+    for (const offer of offers) {
+        const serviceUrls = querySelectorAll(offer, "class", "offer").map(node => node.attrs.find(attr => attr.name === "href").value);
+        const images = querySelectorAll(offer, "class", "provider-icon");
+        const altTexts = images.map(image => image.attrs.find(attr => attr.name === "alt").value);
+        const iconUrls = images.map(image => image.attrs.find(attr => attr.name === "src").value);
 
-    // // Extract the product description
-    // const description = doc.querySelector("div.product-description").textContent;
+        const numOffers = Math.min(serviceUrls.length, altTexts.length, iconUrls.length);
+        for (let i = 0; i < numOffers; i++) {
+            offersResult.push({
+                label: "Subs HD",
+                serviceUrl: serviceUrls[i],
+                altText: altTexts[i],
+                iconUrl: iconUrls[i],
+            });
+        }
+    }
 
-    // // Extract the product price 
-    // const price = doc.querySelector("span.price").textContent;
+    return offersResult;
 };
 
-function searchNth(string, pattern, index = 1) {
-    var L = string.length, i = -1;
-    while (index-- && i++ < L) {
-        i = string.indexOf(pattern, i);
-        if (i < 0) break;
-    }
-    return i;
-}
+function querySelectorAll(node, attrName, attrValue) {
+    // Results array to store matching nodes
+    const results = [];
 
-function parseOffers(html) {
-    const start = searchNth(html, 'class="buybox-row__offers"')
-    const row_offers = html.substring(start);
-    const end = searchNth(row_offers, '</div><!---->')
-    return `<div ${row_offers.slice(0, end)}`;
+    // Check if current node matches
+    if (node.attrs && Array.isArray(node.attrs)) {
+        const matchingAttr = node.attrs.find(attr =>
+            attr.name === attrName && attr.value.split(" ").includes(attrValue)
+        );
+        if (matchingAttr) {
+            results.push(node);
+        }
+    }
+
+    // Base case: no children to traverse
+    if (!node.childNodes || !Array.isArray(node.childNodes)) {
+        return results;
+    }
+
+    // Recursive case: traverse all children
+    for (const childNode of node.childNodes) {
+        const childResults = querySelectorAll(childNode, attrName, attrValue);
+        results.push(...childResults);
+    }
+
+    return results;
 }
