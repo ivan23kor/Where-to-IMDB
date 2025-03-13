@@ -17,7 +17,9 @@ chrome.runtime.onConnect.addListener(function (port) {
 
 async function findTitle(title) {
     title = title.replaceAll(' ', '-').replaceAll("'", '');
-    const url = `https://www.justwatch.com/ca/movie/${title}`;
+    // const url = `https://www.justwatch.com/ca/movie/${title}`;
+    const url = './jw_sample_page.html';
+
     const html = await (await fetch(url)).text();
 
     const offers = parseOffers(html);
