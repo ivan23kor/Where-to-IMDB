@@ -1,0 +1,26 @@
+{
+  "name": "IMDB W2W: IMDB Where to Watch",
+  "description": "Adds streaming services info to IMDB top charts",
+  "version": "1.0",
+  "manifest_version": 3,
+  "content_scripts": [
+    {
+      "js": [
+        "scripts/content.js"
+      ],
+      "matches": [
+        "https://www.imdb.com/*"
+      ]
+    }
+  ],
+  "background": {
+    "service_worker": "scrape.js",
+    "type": "module"
+  },
+  "permissions": [
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://www.justwatch.com/*"
+  ]
+}
