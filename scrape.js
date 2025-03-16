@@ -2,7 +2,6 @@ import { parse } from "/lib/parse5.min.js";
 
 // Establish connection with background script
 chrome.runtime.onConnect.addListener(function (port) {
-    console.assert(port.name === "knockknock");
     port.onMessage.addListener(async function (msg) {
         if (msg.title) {
             const offers = await findOffers(msg.title);
@@ -13,6 +12,7 @@ chrome.runtime.onConnect.addListener(function (port) {
 });
 
 async function findOffers(title) {
+    // TODO: do this replacement on the frontend side
     title = title.replaceAll(' ', '-').replaceAll("'", '');
     // const url = `https://www.justwatch.com/ca/movie/${title}`;
     const url = './jw_sample_page.html';
@@ -32,7 +32,6 @@ async function findOffers(title) {
         const numOffers = Math.min(serviceUrls.length, altTexts.length, iconUrls.length);
         for (let i = 0; i < numOffers; i++) {
             offersResult.push({
-                label: "Subs HD",
                 serviceUrl: serviceUrls[i],
                 altText: altTexts[i],
                 iconUrl: iconUrls[i],
