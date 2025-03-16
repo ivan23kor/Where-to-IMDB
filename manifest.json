@@ -14,7 +14,7 @@
     }
   ],
   "background": {
-    "service_worker": "scrape.js",
+    "service_worker": "/scripts/scrape.js",
     "type": "module"
   },
   "permissions": [
@@ -22,5 +22,15 @@
   ],
   "host_permissions": [
     "https://www.justwatch.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "/assets/*"
+      ],
+      "matches": [
+        "https://www.imdb.com/*"
+      ]
+    }
   ]
 }
