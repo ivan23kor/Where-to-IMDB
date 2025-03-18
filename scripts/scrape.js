@@ -12,8 +12,6 @@ chrome.runtime.onConnect.addListener(function (port) {
 });
 
 async function findOffers(title) {
-    // TODO: do this replacement on the frontend side
-    title = title.replaceAll(' ', '-').replaceAll("'", '');
     // const url = `https://www.justwatch.com/ca/movie/${title}`;
     const url = '/jw_sample_page.html';
 

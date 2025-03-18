@@ -17,7 +17,7 @@ function afterDOMLoaded() {
     });
 
     // Select all movie title elements on the IMDB Top 250 page
-    const titles = document.querySelectorAll('.ipc-metadata-list-summary-item__tc');
+    const titles = document.querySelectorAll('.ipc-metadata-list-summary-item');
     for (const title of titles) {
         title.addEventListener('mouseenter', (event) => {
             addHoverToMovieTitle(title, port);
@@ -26,10 +26,10 @@ function afterDOMLoaded() {
 }
 
 function extractMovieTitle(title) {
-    const movieTitleWithOrdinal = title.querySelector('.ipc-title__text').innerText;
-    // TODO: fix this replacement, it does not currently work.
-    const movieTitle = movieTitleWithOrdinal.replace(/^\d+\.\s+/, '');
-    console.log(movieTitle);
+    const movieTitle = title.querySelector('.ipc-title__text').innerText
+        .replace(/^\d+\.\s+/, '')
+        .replace(/'/g, '')
+        .replace(/ /g, '-');
     return movieTitle;
 }
 
@@ -68,7 +68,6 @@ function addHoverToMovieTitle(title, port) {
 
 function addLoadingIcon(rateButton) {
     const loadingIcon = document.createElement("img");
-    loadingIcon.classList.add("provider-icon");
     loadingIcon.setAttribute("src", chrome.runtime.getURL("/assets/loading.svg"));
     loadingIcon.setAttribute("alt", "Loading");
     loadingIcon.setAttribute("title", "Loading");
