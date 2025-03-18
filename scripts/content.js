@@ -39,10 +39,6 @@ function addHoverToMovieTitle(title, port) {
         return;
     }
 
-    // Add loading icon
-    const rateButton = title.querySelector('.ipc-rate-button');
-    addLoadingIcon(rateButton);
-
     // Extract movie title under hover
     const movieTitle = extractMovieTitle(title);
 
@@ -53,11 +49,6 @@ function addHoverToMovieTitle(title, port) {
     // Avoid duplicate logs by removing the event listener after the first message
     const handleMessage = function (msg) {
         console.log(msg);
-        // Remove loading icon
-        const loadingIcon = title.querySelector("#loading-icon");
-        if (loadingIcon) {
-            loadingIcon.remove();
-        }
         for (const offer of msg.offers) {
             addOffer(offer, rateButton);
         }
@@ -66,15 +57,15 @@ function addHoverToMovieTitle(title, port) {
     port.onMessage.addListener(handleMessage);
 };
 
-function addLoadingIcon(rateButton) {
-    const loadingIcon = document.createElement("img");
-    loadingIcon.setAttribute("src", chrome.runtime.getURL("/assets/loading.svg"));
-    loadingIcon.setAttribute("alt", "Loading");
-    loadingIcon.setAttribute("title", "Loading");
-    loadingIcon.setAttribute("id", "loading-icon");
-    loadingIcon.style.width = "42px";
-    loadingIcon.style.overflow = "visible";
-    rateButton.insertAdjacentElement('afterend', loadingIcon);
+function createLoadingIcon() {
+    const icon = document.createElement("img");
+    icon.setAttribute("src", chrome.runtime.getURL("/assets/loading.svg"));
+    icon.setAttribute("alt", "Loading");
+    icon.setAttribute("title", "Loading");
+    icon.setAttribute("id", "loading-icon");
+    icon.style.width = "42px";
+    icon.style.overflow = "visible";
+    return icon;
 }
 
 function addOffer(offer, rateButton) {
