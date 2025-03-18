@@ -20,7 +20,13 @@ function afterDOMLoaded() {
     const titles = document.querySelectorAll('.ipc-metadata-list-summary-item');
     for (const title of titles) {
         title.addEventListener('mouseenter', (event) => {
-            addHoverToMovieTitle(title, port);
+            showOffersPopup(title, port);
+        });
+        title.addEventListener('mouseleave', (event) => {
+            const popup = getOffersPopup(title);
+            if (popup) {
+                popup.style.visibility = "hidden";
+            }
         });
     }
 }
@@ -33,12 +39,7 @@ function extractMovieTitle(title) {
     return movieTitle;
 }
 
-function addHoverToMovieTitle(title, port) {
-    // Don't create duplicate streaming icons or loading icons for this title, return early.
-    if (title.querySelector('.streaming-offers') || title.querySelector("#loading-icon")) {
-        return;
-    }
-
+function showOffersPopup(title, port) {
     // Extract movie title under hover
     const movieTitle = extractMovieTitle(title);
 
@@ -46,12 +47,12 @@ function addHoverToMovieTitle(title, port) {
     port.postMessage({ title: movieTitle });
 
     // Create streaming icons based on received data from background script
-    // Avoid duplicate logs by removing the event listener after the first message
     const handleMessage = function (msg) {
-        console.log(msg);
-        for (const offer of msg.offers) {
-            addOffer(offer, rateButton);
-        }
+        const popup = getOffersPopup(title) || createPopup(title, msg.offers);
+        popup.style.visibility = "visible";
+        title.appendChild(popup);
+
+        // Avoid duplicate logs by removing the event listener after the first message
         port.onMessage.removeListener(handleMessage);
     };
     port.onMessage.addListener(handleMessage);
@@ -68,26 +69,40 @@ function createLoadingIcon() {
     return icon;
 }
 
-function addOffer(offer, rateButton) {
-    // Create a new div for the offer
-    const newDiv = document.createElement("div");
-    newDiv.classList.add("streaming-offers");
-
+function createOfferIcon(offer) {
     // Create an icon for the offer
-    const newIcon = document.createElement("img");
-    newIcon.classList.add("provider-icon");
-    newIcon.setAttribute("src", offer.iconUrl);
-    newIcon.setAttribute("title", offer.altText);
-    newIcon.setAttribute("alt", offer.altText);
-    newIcon.style.width = "30px";
+    const icon = document.createElement("img");
+    icon.setAttribute("src", offer.iconUrl);
+    icon.setAttribute("title", offer.altText);
+    icon.setAttribute("alt", offer.altText);
+    icon.setAttribute("href", offer.serviceUrl);
+    icon.style.width = "30px";
+    return icon;
+}
 
-    // Create a link for the offer
-    const newHref = document.createElement("a");
-    newHref.classList.add("offer");
-    newHref.setAttribute("href", offer.serviceUrl);
-    newHref.appendChild(newIcon);
-    newDiv.appendChild(newHref);
+function createPopup(title, offers) {
+    const popup = document.createElement("div");
+    popup.classList.add("offers-popup");
+    popup.style.position = "absolute";
+    popup.style.zIndex = "1000";
 
-    // Insert the new div after the rate button
-    rateButton.insertAdjacentElement('afterend', newDiv);
+    const titleRect = title.getBoundingClientRect();
+    const scrollX = window.scrollX || document.documentElement.scrollLeft;
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    const left = titleRect.left + titleRect.width / 4 + scrollX;
+    const top = titleRect.y + scrollY - 260;
+    popup.style.left = left + 'px';
+    popup.style.top = top + 'px';
+
+    for (const offer of offers) {
+        const icon = createOfferIcon(offer);
+        popup.appendChild(icon);
+    }
+
+    return popup;
+
+}
+
+function getOffersPopup(title) {
+    return title.querySelector(".offers-popup");
 }
