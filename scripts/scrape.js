@@ -13,7 +13,10 @@ chrome.runtime.onConnect.addListener(function (port) {
 
 async function findOffers(title) {
     // const url = `https://www.justwatch.com/ca/movie/${title}`;
-    const url = '/jw_sample_page.html';
+    const url = `https://www.justwatch.com/ca/search/?q=${encodeURIComponent(title)}`;
+    // const url = '/jw_sample_page.html';
+
+    console.log(url);
 
     const html = await (await fetch(url)).text();
 

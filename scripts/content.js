@@ -33,9 +33,7 @@ function afterDOMLoaded() {
 
 function extractMovieTitle(title) {
     const movieTitle = title.querySelector('.ipc-title__text').innerText
-        .replace(/^\d+\.\s+/, '')
-        .replace(/'/g, '')
-        .replace(/ /g, '-');
+        .replace(/^\d+\.\s+/, '');
     return movieTitle;
 }
 
