@@ -13,13 +13,8 @@ chrome.runtime.onConnect.addListener(function (port) {
 });
 
 async function fetchDocument(title) {
-    let url = '/jw_sample_page.html';
-    if (false) {
-        const encodedTitle = encodeURIComponent(title.toLowerCase());
-        url = `https://www.justwatch.com/ca/search/?q=${encodedTitle}`;
-    }
-
-    console.log(url);
+    const encodedTitle = encodeURIComponent(title.toLowerCase());
+    const url = `https://www.justwatch.com/ca/search/?q=${encodedTitle}`;
 
     const html = await (await fetch(url)).text();
 
