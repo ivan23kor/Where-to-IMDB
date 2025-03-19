@@ -34,7 +34,8 @@ function afterDOMLoaded() {
 function extractMovieTitle(title) {
     const movieTitle = title.querySelector('.ipc-title__text').innerText
         .replace(/^\d+\.\s+/, '');
-    return movieTitle;
+    const year = title.querySelector('.cli-title-metadata-item').innerText;
+    return `${movieTitle} ${year}`;
 }
 
 function showOffersPopup(title, port) {
