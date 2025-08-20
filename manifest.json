@@ -1,6 +1,6 @@
 {
-  "name": "IMDB W2W: Where to Watch IMDB movies",
-  "description": "Adds streaming services availability information to IMDB movie charts",
+  "name": "IMDb Streaming Availability",
+  "description": "Instantly see streaming availability from JustWatch directly on IMDb top charts pages!",
   "version": "1.0",
   "manifest_version": 3,
   "content_scripts": [
