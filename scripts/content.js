@@ -2,6 +2,7 @@
 let globalPopup = null;
 let currentHoveredTitle = null;
 let port = null;
+let loadingSpinner = null;
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', afterDOMLoaded);
@@ -22,14 +23,22 @@ function afterDOMLoaded() {
 
     // Create the global popup once
     createGlobalPopup();
+    
+    // Create loading spinner
+    createLoadingSpinner();
 
     // Select all movie title elements on the IMDB Top 250 page
     const titles = document.querySelectorAll('.ipc-metadata-list-summary-item');
     for (const title of titles) {
         title.addEventListener('mouseenter', (event) => {
+            showLoadingSpinner(event);
             showGlobalPopup(title);
         });
+        title.addEventListener('mousemove', (event) => {
+            moveLoadingSpinner(event);
+        });
         title.addEventListener('mouseleave', (event) => {
+            hideLoadingSpinner();
             // Clear current hovered title
             if (currentHoveredTitle === title) {
                 currentHoveredTitle = null;
@@ -46,6 +55,7 @@ function afterDOMLoaded() {
 
     // Hide popup when mouse leaves the page area
     document.addEventListener('mouseleave', () => {
+        hideLoadingSpinner();
         hideGlobalPopup();
     });
 }
@@ -96,6 +106,42 @@ function createGlobalPopup() {
     document.body.appendChild(globalPopup);
 }
 
+function createLoadingSpinner() {
+    loadingSpinner = document.createElement('div');
+    loadingSpinner.style.position = 'fixed';
+    loadingSpinner.style.zIndex = '9999';
+    loadingSpinner.style.display = 'none';
+    loadingSpinner.style.pointerEvents = 'none';
+    
+    const spinnerImg = document.createElement('img');
+    spinnerImg.src = chrome.runtime.getURL('assets/loading.svg');
+    spinnerImg.style.width = '32px';
+    spinnerImg.style.height = '32px';
+    
+    loadingSpinner.appendChild(spinnerImg);
+    document.body.appendChild(loadingSpinner);
+}
+
+function showLoadingSpinner(event) {
+    if (!loadingSpinner) return;
+    
+    loadingSpinner.style.display = 'block';
+    moveLoadingSpinner(event);
+}
+
+function moveLoadingSpinner(event) {
+    if (!loadingSpinner) return;
+    
+    loadingSpinner.style.left = (event.pageX + 10) + 'px';
+    loadingSpinner.style.top = (event.pageY - 300) + 'px';
+}
+
+function hideLoadingSpinner() {
+    if (loadingSpinner) {
+        loadingSpinner.style.display = 'none';
+    }
+}
+
 function showGlobalPopup(title) {
     currentHoveredTitle = title;
     
@@ -121,7 +167,8 @@ function showGlobalPopup(title) {
     }
     
     globalPopup.style.left = left + 'px';
-    globalPopup.style.display = "flex";
+    // Keep popup hidden until content is loaded
+    globalPopup.style.display = "none";
     
     // Set initial position, will adjust after content loads
     globalPopup.style.top = top + 'px';
@@ -129,8 +176,8 @@ function showGlobalPopup(title) {
     // Store positioning info for later adjustment
     globalPopup._positionInfo = { titleRect, isInTopHalf, scrollY };
     
-    // Show loading state
-    globalPopup.innerHTML = '<div style="color: #999; font-style: italic;">Loading...</div>';
+    // Clear popup content while waiting for data
+    globalPopup.innerHTML = '';
     
     // Extract movie title under hover
     const movieTitle = extractMovieTitle(title);
@@ -141,7 +188,12 @@ function showGlobalPopup(title) {
     // Create streaming icons based on received data from background script
     const handleMessage = function (msg) {
         if (currentHoveredTitle === title) {
+            hideLoadingSpinner(); // Hide the cursor-following spinner
             updateGlobalPopupContent(msg.offers);
+            // Show popup only after content is loaded
+            globalPopup.style.display = "flex";
+            // Adjust position after showing popup
+            adjustPopupPosition();
         }
         // Remove the event listener after handling the message
         port.onMessage.removeListener(handleMessage);
@@ -155,6 +207,7 @@ function hideGlobalPopup() {
         globalPopup.style.display = "none";
         globalPopup.innerHTML = "";
     }
+    hideLoadingSpinner();
 }
 
 function updateGlobalPopupContent(offers) {
@@ -162,17 +215,33 @@ function updateGlobalPopupContent(offers) {
     
     globalPopup.innerHTML = "";
     
+    // Check if there are any offers to display
+    let hasOffers = false;
     for (const offer of offers) {
-        const categoryName = offer.categoryName;
-        const categoryOffers = offer.offers;
-        const category = createCategoryNode(categoryName, categoryOffers);
-        if (category) {
-            globalPopup.appendChild(category);
+        if (offer.offers && offer.offers.length > 0) {
+            hasOffers = true;
+            break;
         }
     }
     
-    // Adjust position after content is loaded
-    adjustPopupPosition();
+    // Only show popup if there are offers
+    if (hasOffers) {
+        for (const offer of offers) {
+            const categoryName = offer.categoryName;
+            const categoryOffers = offer.offers;
+            const category = createCategoryNode(categoryName, categoryOffers);
+            if (category) {
+                globalPopup.appendChild(category);
+            }
+        }
+        
+        // Adjust position after content is loaded
+        adjustPopupPosition();
+    } else {
+        // Show a message when no offers are available
+        globalPopup.innerHTML = '<div style="color: #999; font-style: italic; padding: 10px;">No streaming options available</div>';
+        adjustPopupPosition();
+    }
 }
 
 function adjustPopupPosition() {
@@ -197,6 +266,11 @@ function adjustPopupPosition() {
         // Ensure popup doesn't go above viewport
         if (newTop < scrollY) {
             newTop = scrollY + 10;
+        }
+        // Ensure popup doesn't go below viewport
+        const popupBottom = newTop - scrollY + popupRect.height;
+        if (popupBottom > viewportHeight) {
+            newTop = scrollY + viewportHeight - popupRect.height - 10;
         }
     }
     

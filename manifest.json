@@ -1,6 +1,6 @@
 {
-  "name": "IMDB W2W: IMDB Where to Watch",
-  "description": "Adds streaming services info to IMDB top charts",
+  "name": "IMDB W2W: Where to Watch IMDB movies",
+  "description": "Adds streaming services availability information to IMDB movie charts",
   "version": "1.0",
   "manifest_version": 3,
   "content_scripts": [
@@ -17,9 +17,6 @@
     "service_worker": "/scripts/scrape.js",
     "type": "module"
   },
-  "permissions": [
-    "activeTab"
-  ],
   "host_permissions": [
     "https://www.justwatch.com/*"
   ],
