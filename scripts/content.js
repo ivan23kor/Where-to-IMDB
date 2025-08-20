@@ -1,34 +1,53 @@
+// Global popup element
+let globalPopup = null;
+let currentHoveredTitle = null;
+let port = null;
+
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', afterDOMLoaded);
 } else {
     afterDOMLoaded();
 }
 
-
 function afterDOMLoaded() {
     function connect() {
         return chrome.runtime.connect({ name: "port" });
     }
 
-    var port = connect();
+    port = connect();
     port.onDisconnect.addListener(() => {
         console.log("Service worker port disconnected. Reconnecting...");
         port = connect();
     });
 
+    // Create the global popup once
+    createGlobalPopup();
+
     // Select all movie title elements on the IMDB Top 250 page
     const titles = document.querySelectorAll('.ipc-metadata-list-summary-item');
     for (const title of titles) {
         title.addEventListener('mouseenter', (event) => {
-            showOffersPopup(title, port);
+            showGlobalPopup(title);
         });
         title.addEventListener('mouseleave', (event) => {
-            const popup = getOffersPopup(title);
-            if (popup) {
-                popup.style.visibility = "hidden";
+            // Clear current hovered title
+            if (currentHoveredTitle === title) {
+                currentHoveredTitle = null;
             }
+            
+            // Small delay to allow moving to popup or another title
+            setTimeout(() => {
+                if (!currentHoveredTitle && !isHoveringPopup()) {
+                    hideGlobalPopup();
+                }
+            }, 100);
         });
     }
+
+    // Hide popup when mouse leaves the page area
+    document.addEventListener('mouseleave', () => {
+        hideGlobalPopup();
+    });
 }
 
 function extractMovieTitle(title) {
@@ -38,77 +57,166 @@ function extractMovieTitle(title) {
     return `${movieTitle} ${year}`;
 }
 
-function showOffersPopup(title, port) {
-    // Try to look for existing popup
-    let popup = getOffersPopup(title);
-    if (popup) {
-        popup.style.visibility = "visible";
-        return;
-    }
+function createGlobalPopup() {
+    globalPopup = document.createElement('div');
+    globalPopup.classList.add("global-offers-popup");
+    globalPopup.style.fontFamily = "Lato,Lato-fallback,Arial,sans-serif";
+    globalPopup.style.fontSize = "14px";
+    globalPopup.style.lineHeight = "1.428571429";
+    globalPopup.style.color = "#d5d5d5";
+    globalPopup.style.boxSizing = "border-box";
+    globalPopup.style.display = "none";
+    globalPopup.style.flexDirection = "column";
+    globalPopup.style.gap = "8px";
+    globalPopup.style.border = "1px solid #444";
+    globalPopup.style.borderRadius = "8px";
+    globalPopup.style.backgroundColor = "rgba(32, 32, 32, 0.95)";
+    globalPopup.style.padding = "12px";
+    globalPopup.style.backdropFilter = "blur(10px)";
+    globalPopup.style.position = "absolute";
+    globalPopup.style.zIndex = "1000";
+    globalPopup.style.maxWidth = "400px";
+    globalPopup.style.width = "auto";
+    globalPopup.style.pointerEvents = "auto"; // Allow interaction with popup
+    
+    // Add hover events to popup itself
+    globalPopup.addEventListener('mouseenter', () => {
+        // Keep popup visible when hovering over it
+    });
+    
+    globalPopup.addEventListener('mouseleave', () => {
+        // Hide popup when leaving both title and popup
+        setTimeout(() => {
+            if (!currentHoveredTitle) {
+                hideGlobalPopup();
+            }
+        }, 50);
+    });
+    
+    document.body.appendChild(globalPopup);
+}
 
+function showGlobalPopup(title) {
+    currentHoveredTitle = title;
+    
+    // Position the popup next to the title with smart alignment
+    const titleRect = title.getBoundingClientRect();
+    const scrollX = window.scrollX || document.documentElement.scrollLeft;
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    const left = titleRect.right + scrollX + 10;
+    
+    // Smart vertical alignment based on screen position
+    const viewportHeight = window.innerHeight;
+    const titleMiddle = titleRect.top + (titleRect.height / 2);
+    const isInTopHalf = titleMiddle < (viewportHeight / 2);
+    
+    let top;
+    if (isInTopHalf) {
+        // Align top of popup with top of entry for top half
+        top = titleRect.top + scrollY;
+    } else {
+        // Align bottom of popup with bottom of entry for bottom half
+        // We'll adjust this after measuring popup height
+        top = titleRect.bottom + scrollY;
+    }
+    
+    globalPopup.style.left = left + 'px';
+    globalPopup.style.display = "flex";
+    
+    // Set initial position, will adjust after content loads
+    globalPopup.style.top = top + 'px';
+    
+    // Store positioning info for later adjustment
+    globalPopup._positionInfo = { titleRect, isInTopHalf, scrollY };
+    
+    // Show loading state
+    globalPopup.innerHTML = '<div style="color: #999; font-style: italic;">Loading...</div>';
+    
     // Extract movie title under hover
     const movieTitle = extractMovieTitle(title);
-
+    
     // Send a request to background script for this movie title
     port.postMessage({ title: movieTitle });
-
+    
     // Create streaming icons based on received data from background script
     const handleMessage = function (msg) {
-        const popup = createPopup(title, msg.offers);
-        title.appendChild(popup);
-
-        // Avoid duplicate logs by removing the event listener after the first message
+        if (currentHoveredTitle === title) {
+            updateGlobalPopupContent(msg.offers);
+        }
+        // Remove the event listener after handling the message
         port.onMessage.removeListener(handleMessage);
     };
     port.onMessage.addListener(handleMessage);
 }
 
-function getOffersPopup(title) {
-    return title.querySelector(".offers-popup");
+function hideGlobalPopup() {
+    currentHoveredTitle = null;
+    if (globalPopup) {
+        globalPopup.style.display = "none";
+        globalPopup.innerHTML = "";
+    }
 }
 
-function createPopup(title, offers) {
-    // Create popup
-    const popup = document.createElement('div');
-    popup.classList.add("offers-popup");
-    popup.style.fontFamily = "Lato,Lato-fallback,Arial,sans-serif";
-    popup.style.fontSize = "14px";
-    popup.style.lineHeight = "1.428571429";
-    popup.style.color = "#d5d5d5";
-    popup.style.paddingTop = "56px";
-    popup.style.boxSizing = "border-box";
-    popup.style.display = "flex";
-    popup.style.gap = "16px";
-    popup.style.overflowX = "auto";
-    popup.style.border = "1px solid #e0e0e0";
-    popup.style.borderRadius = "8px";
-    popup.style.backgroundColor = "rgba(51, 51, 51, 0.4)";
-    popup.style.padding = "10px";
-
-    // Position the popup over the title
-    const titleRect = title.getBoundingClientRect();
-    const scrollX = window.scrollX || document.documentElement.scrollLeft;
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
-    const left = titleRect.left + scrollX;
-    const top = titleRect.y + scrollY - 300;
-    popup.style.position = "absolute";
-    popup.style.zIndex = "1000";
-    popup.style.left = left + 'px';
-    popup.style.top = top + 'px';
-
+function updateGlobalPopupContent(offers) {
+    if (!globalPopup) return;
+    
+    globalPopup.innerHTML = "";
+    
     for (const offer of offers) {
         const categoryName = offer.categoryName;
-        const offers = offer.offers;
-        const category = createCategoryNode(categoryName, offers);
-        popup.appendChild(category);
+        const categoryOffers = offer.offers;
+        const category = createCategoryNode(categoryName, categoryOffers);
+        if (category) {
+            globalPopup.appendChild(category);
+        }
     }
-
-    return popup;
+    
+    // Adjust position after content is loaded
+    adjustPopupPosition();
 }
+
+function adjustPopupPosition() {
+    if (!globalPopup || !globalPopup._positionInfo) return;
+    
+    const { titleRect, isInTopHalf, scrollY } = globalPopup._positionInfo;
+    const popupRect = globalPopup.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    
+    let newTop;
+    
+    if (isInTopHalf) {
+        // Top alignment - ensure popup doesn't go below viewport
+        newTop = titleRect.top + scrollY;
+        const popupBottom = newTop - scrollY + popupRect.height;
+        if (popupBottom > viewportHeight) {
+            newTop = scrollY + viewportHeight - popupRect.height - 10;
+        }
+    } else {
+        // Bottom alignment - align bottom of popup with bottom of entry
+        newTop = titleRect.bottom + scrollY - popupRect.height;
+        // Ensure popup doesn't go above viewport
+        if (newTop < scrollY) {
+            newTop = scrollY + 10;
+        }
+    }
+    
+    globalPopup.style.top = newTop + 'px';
+}
+
+function isHoveringPopup() {
+    return globalPopup && globalPopup.matches(':hover');
+}
+
+// Remove this function as we're using a global popup now
+
+// Remove this function as we're using updateGlobalPopupContent now
 
 
 function createCategoryNode(categoryName, offers) {
+    if (!offers || offers.length === 0) return null;
+    
     const categoryContainer = document.createElement('div');
+    categoryContainer.style.marginBottom = "8px";
 
     const categoryNode = createCategoryLabelNode(categoryName);
     categoryContainer.appendChild(categoryNode);
@@ -147,14 +255,15 @@ function createCategoryLabelNode(categoryName) {
 function createOffersNode(offers) {
     const offersContainer = document.createElement('div');
     offersContainer.style.fontFamily = "Lato,Lato-fallback,Arial,sans-serif";
-    offersContainer.style.fontSize = "14px";
-    offersContainer.style.lineHeight = "1.428571429";
+    offersContainer.style.fontSize = "12px";
+    offersContainer.style.lineHeight = "1.2";
     offersContainer.style.color = "#d5d5d5";
-    offersContainer.style.paddingTop = "16px";
+    offersContainer.style.paddingTop = "8px";
     offersContainer.style.display = "flex";
-    offersContainer.style.gap = "16px";
+    offersContainer.style.gap = "8px";
     offersContainer.style.overflowX = "auto";
     offersContainer.style.boxSizing = "border-box";
+    offersContainer.style.flexWrap = "wrap";
     for (const offer of offers) {
         const offerNode = createOfferNode(offer);
         offersContainer.appendChild(offerNode);
@@ -165,6 +274,20 @@ function createOffersNode(offers) {
 function createOfferNode(offer) {
     const offerContainer = document.createElement('a');
     offerContainer.href = offer.url;
+    offerContainer.style.textDecoration = "none";
+    offerContainer.style.display = "flex";
+    offerContainer.style.flexDirection = "column";
+    offerContainer.style.alignItems = "center";
+    offerContainer.style.gap = "4px";
+    offerContainer.style.padding = "4px";
+    offerContainer.style.borderRadius = "4px";
+    offerContainer.style.transition = "background-color 0.2s";
+    offerContainer.addEventListener('mouseenter', () => {
+        offerContainer.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+    });
+    offerContainer.addEventListener('mouseleave', () => {
+        offerContainer.style.backgroundColor = "transparent";
+    });
 
     const icon = createOfferIcon(offer);
     offerContainer.appendChild(icon);
@@ -181,7 +304,8 @@ function createOfferIcon(offer) {
     icon.src = offer.imageSrc;
     icon.title = offer.name;
     icon.alt = offer.name;
-    icon.style.height = icon.style.width = "42px";
+    icon.style.height = icon.style.width = "32px";
+    icon.style.borderRadius = "4px";
     return icon;
 }
 

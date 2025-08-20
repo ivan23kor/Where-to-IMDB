@@ -13,17 +13,20 @@ chrome.runtime.onConnect.addListener(function (port) {
 });
 
 async function fetchDocument(title) {
-    let url = '/jw_sample_page.html';
-    if (false) {
-        const encodedTitle = encodeURIComponent(title.toLowerCase());
-        url = `https://www.justwatch.com/ca/search/?q=${encodedTitle}`;
-    }
+    const encodedTitle = encodeURIComponent(title.toLowerCase());
+    const url = `https://www.justwatch.com/ca/search/?q=${encodedTitle}`;
 
     console.log(url);
 
-    const html = await (await fetch(url)).text();
-
-    return await parse(html);
+    try {
+        const html = await (await fetch(url)).text();
+        return await parse(html);
+    } catch (error) {
+        console.error('Failed to fetch from JustWatch, using sample data:', error);
+        // Fallback to sample data if fetch fails
+        const html = await (await fetch('/jw_sample_page.html')).text();
+        return await parse(html);
+    }
 }
 
 function findOffersInCategory(offersNode, categoryName) {
@@ -43,7 +46,7 @@ function findOffersInCategory(offersNode, categoryName) {
             price: price,
             url: url,
             name: name,
-            imageSrc: imageSrc
+            imageSrc: imageSrc || getServiceIcon(name)
         });
     }
 
@@ -122,4 +125,18 @@ function getFirstText(node) {
         }
     }
     return "";
+}
+
+function getServiceIcon(serviceName) {
+    const serviceIcons = {
+        'netflix': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDIiIGhlaWdodD0iNDIiIHZpZXdCb3g9IjAgMCA0MiA0MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgZmlsbD0iI0UxMDkxNSIvPgo8cGF0aCBkPSJNMTAuNSA5SDE0VjMzSDEwLjVWOVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0yOCA5SDMxLjVWMzNIMjhWOVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xNCA5TDI4IDMzSDI0LjVMMTAuNSA5SDE0WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+',
+        'amazon prime video': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDIiIGhlaWdodD0iNDIiIHZpZXdCb3g9IjAgMCA0MiA0MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgZmlsbD0iIzAwQTZGQiIvPgo8cGF0aCBkPSJNMTIgMjRMMjEgMTVMMzAgMjRIMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=',
+        'disney+': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDIiIGhlaWdodD0iNDIiIHZpZXdCb3g9IjAgMCA0MiA0MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgZmlsbD0iIzExM0FDQyIvPgo8cGF0aCBkPSJNMTAgMThIMzJWMjRIMTBWMThaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=',
+        'hulu': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDIiIGhlaWdodD0iNDIiIHZpZXdCb3g9IjAgMCA0MiA0MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgZmlsbD0iIzNEQjc5NCIvPgo8cGF0aCBkPSJNMTAgMTBIMzJWMzJIMTBWMTBaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=',
+        'hbo max': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDIiIGhlaWdodD0iNDIiIHZpZXdCb3g9IjAgMCA0MiA0MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgZmlsbD0iIzc0MUI5NiIvPgo8cGF0aCBkPSJNMTAgMTBIMzJWMzJIMTBWMTBaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=',
+        'apple tv+': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDIiIGhlaWdodD0iNDIiIHZpZXdCb3g9IjAgMCA0MiA0MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgZmlsbD0iIzAwMDAwMCIvPgo8cGF0aCBkPSJNMTAgMTBIMzJWMzJIMTBWMTBaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4='
+    };
+    
+    const normalizedName = serviceName.toLowerCase();
+    return serviceIcons[normalizedName] || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDIiIGhlaWdodD0iNDIiIHZpZXdCb3g9IjAgMCA0MiA0MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgZmlsbD0iIzY2NjY2NiIvPgo8dGV4dCB4PSIyMSIgeT0iMjUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPj88L3RleHQ+Cjwvc3ZnPg==';
 }
